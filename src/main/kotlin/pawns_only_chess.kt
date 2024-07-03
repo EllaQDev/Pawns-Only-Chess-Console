@@ -52,8 +52,11 @@ fun playGame(board: List<MutableList<Cell>>) {
                     println("Bye!")
                     break@outer
                 }
-                val valid = checkValidMove(response)
-                if (!valid) println("Invalid Input") else break
+                val valid = checkValidMove(response, board, count)
+                if (!valid) println("Invalid Input") else {
+                    printGameBoard(board)
+                    break
+                }
             }
         } else {
             while (true) {
@@ -63,8 +66,11 @@ fun playGame(board: List<MutableList<Cell>>) {
                     println("Bye!")
                     break@outer
                 }
-                val valid = checkValidMove(response)
-                if (!valid) println("Invalid Input") else break
+                val valid = checkValidMove(response, board, count)
+                if (!valid) println("Invalid Input") else {
+                    printGameBoard(board)
+                    break
+                }
             }
         }
 
@@ -72,9 +78,62 @@ fun playGame(board: List<MutableList<Cell>>) {
     }
 
 }
-fun checkValidMove(move: String): Boolean {
-    val validSquaresRegex = "[a-h][1-8][a-h][1-8]".toRegex()
-    return validSquaresRegex.matches(move)
+fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Boolean {
+
+    val allValidSquaresRegex = "[a-h][1-8][a-h][1-8]".toRegex()
+    if (!allValidSquaresRegex.matches(move)) return false
+    val startFile = move[0]
+    val startRank = move[1]
+    //println(startFile.toString() + startRank)
+    val cellOnBoard = board.flatten().filter {it.file == startFile.toString() && it.rank == startRank.digitToInt() }[0]
+    //println("tried to find $startFile$startRank:${cellOnBoard[0].file}${cellOnBoard[0].rank}")
+    val pieceAtStart = cellOnBoard.piece
+    if (count % 2 == 0) {
+        if (pieceAtStart != null) {
+            if(pieceAtStart.color != PlayerColor.WHITE) {
+                println("No white pawn at $startFile$startRank")
+            }
+            if (cellOnBoard.rank == 2) {
+                val allowedStartingMovesRegex = "$startFile[${startRank + 1}${startRank + 2}]".toRegex()
+                //println(allowedStartingMovesRegex.toString())
+                //println(move.substring(2,3))
+                val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
+                if (validMove) {
+                    makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE)
+                    return validMove
+                } else {
+                    return false
+                }
+            }
+        } else {
+            println("No white pawn at $startFile$startRank")
+        }
+    } else {
+        if (pieceAtStart != null) {
+            if (cellOnBoard.rank == 7) {
+                val allowedStartingMovesRegex = "$startFile[${startRank - 2}${startRank - 1}]".toRegex()
+//                println(allowedStartingMovesRegex.toString())
+//                println(move.substring(2,3))
+                val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
+                if (validMove) {
+                    makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK)
+                    return validMove
+                } else {
+                    return false
+                }
+            }
+        } else {
+            println("No black pawn at $startFile$startRank")
+        }
+    }
+    return true
+}
+fun makeMove(move: String, cell: Cell, piece: Piece, board: List<MutableList<Cell>>, playerColor: PlayerColor) {
+    cell.piece = null
+    //get target cell
+    val targetCell = board.flatten().first { it.file == move[2].toString() && it.rank == move[3].digitToInt() }
+    //change target cell piece
+    targetCell.piece = Piece(playerColor)
 }
 fun printTitle() {
     println("Pawns-Only Chess")
