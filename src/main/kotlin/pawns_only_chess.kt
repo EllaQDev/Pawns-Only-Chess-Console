@@ -18,20 +18,26 @@
 //1 |   |   |   |   |   |   |   |   |
 //  +---+---+---+---+---+---+---+---+
 //    a   b   c   d   e   f   g   h
-
+const val NUM_SQUARES_PER_SIDE = 8
 fun main() {
-    val gameBoard = List<MutableList<String>>(8) { rank -> MutableList<String>(8) {
+    val gameBoard = List<MutableList<Cell>>(8) { rank -> MutableList<Cell>(8) {
         file ->
-        var token: String = " "
+        var token = " "
+        var currCell : Cell = Cell(NUM_SQUARES_PER_SIDE - rank, (('a' + file).toString()))
         if (rank == 1) token = "B"
         if (rank == 6) token = "W"
-        token
+        if (token == "B") {
+            currCell.piece = Piece(PlayerColor.BLACK)
+        }
+        if (token == "W") {
+            currCell.piece = Piece(PlayerColor.WHITE)
+        }
+        currCell
     } }
     playGame(gameBoard)
-
 }
 
-fun playGame(board: List<MutableList<String>>) {
+fun playGame(board: List<MutableList<Cell>>) {
     printTitle()
     val firstPlayer = promptPlayer("First")
     val secondPlayer = promptPlayer("Second")
@@ -77,9 +83,23 @@ fun promptPlayer(label: String) : String{
     println("$label Player's name:")
     return readln()
 }
-fun printGameBoard(board: List<MutableList<String>>) {
+fun printGameBoard(board: List<MutableList<Cell>>) {
 
     board.forEachIndexed(){ i, rank -> println(rank.joinToString(prefix = "  +---+---+---+---+---+---+---+---+\n${rank.size - i} | ", separator = " | ", postfix = " |"))}
     println("  +---+---+---+---+---+---+---+---+")
     println(('a'..'h').joinToString(prefix = "    ", separator = "   ", postfix = "  "))
+}
+
+class Cell(val rank : Int, val file: String, var piece: Piece? = null) {
+    override fun toString(): String {
+        //return "$rank, $file"
+        return piece?.color?.symbol ?: " "
+    }
+}
+
+class Piece(val color: PlayerColor)
+
+enum class PlayerColor(val symbol: String) {
+    BLACK("B"),
+    WHITE("W")
 }
