@@ -24,7 +24,7 @@ fun main() {
     val gameBoard = List<MutableList<Cell>>(8) { rank -> MutableList<Cell>(8) {
         file ->
         var token = " "
-        val currCell : Cell = Cell(NUM_SQUARES_PER_SIDE - rank, (('a' + file).toString()))
+        val currCell = Cell(NUM_SQUARES_PER_SIDE - rank, (('a' + file).toString()))
         if (rank == 1) token = "B"
         if (rank == 6) token = "W"
         if (token == "B") {
@@ -113,6 +113,8 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 val allowedStartingMovesRegex = "$startFile[${startRank + 1}${startRank + 2}]".toRegex()
                 //println(allowedStartingMovesRegex.toString())
                 //println(move.substring(2,3))
+                //TODO (incorporate additional moves with allowed starting move)
+                val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.WHITE)
                 val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
                 if (validMove) {
                     val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE)
@@ -123,6 +125,9 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
             } else if (cellOnBoard.rank != 1){
                 //cover all other ranks to move just one, except rank 1
                 val allowedMoveRegex = "$startFile${startRank + 1}".toRegex()
+                //TODO (incorporate additional moves with allowed starting move)
+                val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.WHITE)
+                //TODO (add if rank == 5
                 val validMove = allowedMoveRegex.matches(move.substring(2,4))
                 if (validMove) {
                     val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE)
@@ -150,6 +155,9 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 val allowedStartingMovesRegex = "$startFile[${startRank - 2}${startRank - 1}]".toRegex()
 //                println(allowedStartingMovesRegex.toString())
 //                println(move.substring(2,3))
+                //TODO (incorporate additional moves with allowed starting move)
+                val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.BLACK)
+
                 val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
                 if (validMove) {
                     val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK)
@@ -160,6 +168,10 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
             } else if (cellOnBoard.rank != 8) {
                 //cover all other ranks to move just one
                 val allowedMoveRegex = "$startFile${startRank - 1}".toRegex()
+
+                //TODO (incorporate additional moves with allowed starting move)
+                val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.BLACK)
+                //TODO ( add if rank == 4)
                 val validMove = allowedMoveRegex.matches(move.substring(2,4))
                 if (validMove) {
                     val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK)
@@ -191,9 +203,42 @@ fun makeMove(move: String, cell: Cell, piece: Piece, board: List<MutableList<Cel
     targetCell.piece = Piece(playerColor)
     return true
 }
+fun getPatternForDiagCaptures(move: String, board: List<MutableList<Cell>>, playerColor: PlayerColor): String? {
+    val file = move[0]
+    val rank = move[1].digitToInt()
+    val adjFiles = if (file != 'a' && file != 'h') listOf(file + 1, file - 1)
+    else if (file == 'a') listOf(file + 1) else listOf(file - 1)
+    val possibleCellsForCapture = mutableListOf<Cell>()
+    for (opt in adjFiles) {
+        //println(opt)
+        possibleCellsForCapture.addAll(board.flatten().filter { it.file == opt.toString() &&
+                if (playerColor == PlayerColor.WHITE) it.rank == rank + 1  else it.rank == rank - 1 })
+    }
+    val availableCellsForCapture = mutableListOf<Cell>()
+    for (cell in possibleCellsForCapture) {
+        if (playerColor == PlayerColor.WHITE) {
+            if (cell.piece?.color == PlayerColor.BLACK ) {
+                availableCellsForCapture.add(cell)
+            }
+        } else {
+            if (cell.piece?.color == PlayerColor.WHITE) {
+                availableCellsForCapture.add(cell)
+            }
+        }
+    }
+    val listCellCoords = buildString {
+        append(availableCellsForCapture.map {file.toString() + rank.toString() + it.file + it.rank.toString() + "|"}.joinToString(separator = ""))
+    }
+    println(listCellCoords)
+    var finalCellCoordsPattern : String? = null
+    if (listCellCoords.isEmpty()) return null
+    if (listCellCoords[listCellCoords.lastIndex] == '|') finalCellCoordsPattern = listCellCoords.substring(0, listCellCoords.lastIndex - 1)
+    return finalCellCoordsPattern
+}
 fun printTitle() {
     println("Pawns-Only Chess")
 }
+
 fun promptPlayer(label: String) : String{
     println("$label Player's name:")
     return readln()
