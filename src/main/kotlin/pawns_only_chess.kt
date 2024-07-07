@@ -232,7 +232,8 @@ fun getPatternForDiagCaptures(move: String, board: List<MutableList<Cell>>, play
     println(listCellCoords)
     var finalCellCoordsPattern : String? = null
     if (listCellCoords.isEmpty()) return null
-    if (listCellCoords[listCellCoords.lastIndex] == '|') finalCellCoordsPattern = listCellCoords.substring(0, listCellCoords.lastIndex - 1)
+    if (listCellCoords[listCellCoords.lastIndex] == '|') finalCellCoordsPattern = listCellCoords.substring(0, listCellCoords.lastIndex)
+    println(finalCellCoordsPattern)
     return finalCellCoordsPattern
 }
 fun printTitle() {
