@@ -20,6 +20,7 @@
 //    a   b   c   d   e   f   g   h
 const val NUM_SQUARES_PER_SIDE = 8
 var noPawnTrigger = false
+var lastMove = ""
 fun main() {
     val gameBoard = List<MutableList<Cell>>(8) { rank -> MutableList<Cell>(8) {
         file ->
@@ -110,27 +111,55 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 return false
             }
             if (cellOnBoard.rank == 2) {
-                val allowedStartingMovesRegex = "$startFile[${startRank + 1}${startRank + 2}]".toRegex()
+                val allowedStartingMoves = "$startFile[${startRank + 1}${startRank + 2}]"
                 //println(allowedStartingMovesRegex.toString())
                 //println(move.substring(2,3))
-                //TODO (incorporate additional moves with allowed starting move)
                 val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.WHITE)
-                val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
-                if (validMove) {
-                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE)
+                var combinedAllowedMoves : String = allowedStartingMoves
+                if (diagMoves != null){
+                    combinedAllowedMoves += "|$diagMoves"
+                }
+                val combinedAllowedMoveRegex = combinedAllowedMoves.toRegex()
+                val validMove = combinedAllowedMoveRegex.matches(move.substring(2,4))
+                if (validMove == true) {
+                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE, false)
                     return moveMade
                 } else {
                     return false
                 }
             } else if (cellOnBoard.rank != 1){
                 //cover all other ranks to move just one, except rank 1
-                val allowedMoveRegex = "$startFile${startRank + 1}".toRegex()
-                //TODO (incorporate additional moves with allowed starting move)
+                val allowedMove = "$startFile${startRank + 1}"
                 val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.WHITE)
-                //TODO (add if rank == 5
-                val validMove = allowedMoveRegex.matches(move.substring(2,4))
-                if (validMove) {
-                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE)
+                var combinedAllowedMoves : String? = null
+                combinedAllowedMoves = allowedMove
+                if (diagMoves != null){
+                    combinedAllowedMoves += "|$diagMoves"
+                }
+                //TODO (add if rank == 5)
+                var enPassantFlag = false
+                if (cellOnBoard.rank == 5){
+                    val adjFiles = if (startFile != 'a' && startFile != 'h') listOf(startFile + 1, startFile - 1)
+                    else if (startFile == 'a') listOf(startFile + 1) else listOf(startFile - 1)
+                    val mutListEnpassantCandidates = mutableListOf<String>()
+                    for (file in adjFiles) {
+                        if (lastMove == "${file}7${file}5") {
+                            mutListEnpassantCandidates.add("${startFile}5${file}6")
+                        }
+                    }
+                    if (mutListEnpassantCandidates.isNotEmpty()){
+                        combinedAllowedMoves +="|${mutListEnpassantCandidates[0]}"
+                        enPassantFlag = true
+                    }
+                }
+
+                val combinedAllowedMoveRegex = combinedAllowedMoves.toRegex()
+                //println(combinedAllowedMoves)
+                val validMove = combinedAllowedMoveRegex.matches(move.substring(2,4))
+                val enPassantValid = if (enPassantFlag) combinedAllowedMoveRegex.matches(move) else false
+                //val validMove = allowedMoveRegex.matches(move.substring(2,4))
+                if (validMove || enPassantValid) {
+                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.WHITE, enPassantValid)
                     return moveMade
                 } else {
                     return false
@@ -152,29 +181,55 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 return false
             }
             if (cellOnBoard.rank == 7) {
-                val allowedStartingMovesRegex = "$startFile[${startRank - 2}${startRank - 1}]".toRegex()
+                val allowedStartingMoves = "$startFile[${startRank - 2}${startRank - 1}]"
 //                println(allowedStartingMovesRegex.toString())
 //                println(move.substring(2,3))
-                //TODO (incorporate additional moves with allowed starting move)
                 val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.BLACK)
-
-                val validMove = allowedStartingMovesRegex.matches(move.substring(2,4))
+                var combinedAllowedMoves : String? = null
+                combinedAllowedMoves = allowedStartingMoves
+                if (diagMoves != null){
+                    combinedAllowedMoves += "|$diagMoves"
+                }
+                val combinedAllowedMoveRegex = combinedAllowedMoves.toRegex()
+                val validMove = combinedAllowedMoveRegex.matches(move.substring(2,4))
                 if (validMove) {
-                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK)
+                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK, false)
                     return moveMade
                 } else {
                     return false
                 }
             } else if (cellOnBoard.rank != 8) {
                 //cover all other ranks to move just one
-                val allowedMoveRegex = "$startFile${startRank - 1}".toRegex()
-
-                //TODO (incorporate additional moves with allowed starting move)
+                val allowedMove = "$startFile${startRank - 1}"
                 val diagMoves = getPatternForDiagCaptures(move, board, PlayerColor.BLACK)
+                var combinedAllowedMoves : String? = null
+                combinedAllowedMoves = allowedMove
+                if (diagMoves != null){
+                    combinedAllowedMoves += "|$diagMoves"
+                }
                 //TODO ( add if rank == 4)
-                val validMove = allowedMoveRegex.matches(move.substring(2,4))
-                if (validMove) {
-                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK)
+                var enPassantFlag = false
+                if (cellOnBoard.rank == 4){
+                    val adjFiles = if (startFile != 'a' && startFile != 'h') listOf(startFile + 1, startFile - 1)
+                    else if (startFile == 'a') listOf(startFile + 1) else listOf(startFile - 1)
+                    val mutListEnpassantCandidates = mutableListOf<String>()
+                    for (file in adjFiles) {
+                        if (lastMove == "${file}2${file}4") {
+                            mutListEnpassantCandidates.add("${startFile}4${file}3")
+                        }
+                    }
+                    if (mutListEnpassantCandidates.isNotEmpty()){
+                        combinedAllowedMoves +="|${mutListEnpassantCandidates[0]}"
+                        enPassantFlag = true
+                    }
+                }
+                val combinedAllowedMoveRegex = combinedAllowedMoves.toRegex()
+
+                val validMove = combinedAllowedMoveRegex.matches(move.substring(2,4))
+                val enPassantValid = if (enPassantFlag) combinedAllowedMoveRegex.matches(move) else false
+                if (validMove || enPassantValid) {
+                    val moveMade = makeMove(move, cellOnBoard, pieceAtStart, board, PlayerColor.BLACK, enPassantValid)
+                    //println(moveMade)
                     return moveMade
                 } else {
                     return false
@@ -191,16 +246,21 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
     }
     return true
 }
-fun makeMove(move: String, cell: Cell, piece: Piece, board: List<MutableList<Cell>>, playerColor: PlayerColor) : Boolean{
+fun makeMove(move: String, cell: Cell, piece: Piece, board: List<MutableList<Cell>>, playerColor: PlayerColor, enPassantValid: Boolean) : Boolean{
     // get target cell
     val targetCell = board.flatten().first { it.file == move[2].toString() && it.rank == move[3].digitToInt() }
-    // reject move made onto occupied cell
-    if (targetCell.piece?.color == PlayerColor.WHITE || targetCell.piece?.color == PlayerColor.BLACK) {
+    // reject move made onto occupied cell if cell is in same file (move[0] == move[2])
+    if (targetCell.piece?.color == PlayerColor.WHITE && move[0] == move[2] || targetCell.piece?.color == PlayerColor.BLACK && move[0] == move[2]) {
         return false
     }
     cell.piece = null
     //change target cell piece
     targetCell.piece = Piece(playerColor)
+    if (enPassantValid && move[0] != move[2]) {
+        val capturedCell = board.flatten().first { it.file == move[2].toString() && if (playerColor == PlayerColor.WHITE) it.rank == 5 else it.rank == 4 }
+        capturedCell.piece = null
+    }
+    lastMove = move
     return true
 }
 fun getPatternForDiagCaptures(move: String, board: List<MutableList<Cell>>, playerColor: PlayerColor): String? {
@@ -227,13 +287,13 @@ fun getPatternForDiagCaptures(move: String, board: List<MutableList<Cell>>, play
         }
     }
     val listCellCoords = buildString {
-        append(availableCellsForCapture.map {file.toString() + rank.toString() + it.file + it.rank.toString() + "|"}.joinToString(separator = ""))
+        append(availableCellsForCapture.map { it.file + it.rank.toString() + "|"}.joinToString(separator = ""))
     }
-    println(listCellCoords)
+    //println(listCellCoords)
     var finalCellCoordsPattern : String? = null
     if (listCellCoords.isEmpty()) return null
     if (listCellCoords[listCellCoords.lastIndex] == '|') finalCellCoordsPattern = listCellCoords.substring(0, listCellCoords.lastIndex)
-    println(finalCellCoordsPattern)
+    //println(finalCellCoordsPattern)
     return finalCellCoordsPattern
 }
 fun printTitle() {
