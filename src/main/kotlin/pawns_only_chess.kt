@@ -21,6 +21,9 @@
 const val NUM_SQUARES_PER_SIDE = 8
 var noPawnTrigger = false
 var lastMove = ""
+var gameOverFlag = false
+var whiteWinFlag = false
+var blackWinFlag = false
 fun main() {
     val gameBoard = List<MutableList<Cell>>(8) { rank -> MutableList<Cell>(8) {
         file ->
@@ -47,9 +50,16 @@ fun playGame(board: List<MutableList<Cell>>) {
 
     printGameBoard(board)
     var count = 0
-    outer@while (true) {
+    outer@while (!gameOverFlag) {
+
         if (count % 2 == 0) {
             while (true) {
+                val stalemate = checkForStalemate(board, PlayerColor.WHITE)
+                if (stalemate) {
+                    gameOverFlag = true
+                    println("Stalemate!")
+                    break@outer
+                }
                 println("$firstPlayer's turn:")
                 val response = readln()
                 if (response == "exit") {
@@ -63,12 +73,20 @@ fun playGame(board: List<MutableList<Cell>>) {
                 } else if (!valid) {
 
                 } else {
+
                     printGameBoard(board)
+                    if (whiteWinFlag) println("White Wins!")
                     break
                 }
             }
         } else {
-            while (true) {
+            while (!gameOverFlag) {
+                val stalemate = checkForStalemate(board, PlayerColor.BLACK)
+                if (stalemate) {
+                    gameOverFlag = true
+                    println("Stalemate!")
+                    break@outer
+                }
                 println("$secondPlayer's turn:")
                 val response = readln()
                 if (response == "exit") {
@@ -84,6 +102,7 @@ fun playGame(board: List<MutableList<Cell>>) {
 
                 } else {
                     printGameBoard(board)
+                    if (blackWinFlag) println("Black Wins!")
                     break
                 }
             }
@@ -91,7 +110,7 @@ fun playGame(board: List<MutableList<Cell>>) {
 
         count++
     }
-
+    println("Bye!")
 }
 fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Boolean {
 
@@ -136,7 +155,6 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 if (diagMoves != null){
                     combinedAllowedMoves += "|$diagMoves"
                 }
-                //TODO (add if rank == 5)
                 var enPassantFlag = false
                 if (cellOnBoard.rank == 5){
                     val adjFiles = if (startFile != 'a' && startFile != 'h') listOf(startFile + 1, startFile - 1)
@@ -207,7 +225,7 @@ fun checkValidMove(move: String, board: List<MutableList<Cell>>, count: Int): Bo
                 if (diagMoves != null){
                     combinedAllowedMoves += "|$diagMoves"
                 }
-                //TODO ( add if rank == 4)
+
                 var enPassantFlag = false
                 if (cellOnBoard.rank == 4){
                     val adjFiles = if (startFile != 'a' && startFile != 'h') listOf(startFile + 1, startFile - 1)
@@ -261,7 +279,94 @@ fun makeMove(move: String, cell: Cell, piece: Piece, board: List<MutableList<Cel
         capturedCell.piece = null
     }
     lastMove = move
+    val winByAdvance = checkWinByAdvance(board, playerColor)
+    if (winByAdvance) {
+        if (playerColor == PlayerColor.WHITE) whiteWinFlag = true else blackWinFlag = true
+    }
+    val winByCapture = checkWinByCapture(board, playerColor)
+    if (winByCapture) {
+        (if (playerColor == PlayerColor.WHITE) whiteWinFlag = true else blackWinFlag = true)
+    }
+    if (winByCapture || winByAdvance) {
+        gameOverFlag = true
+    }
+
     return true
+}
+fun checkForStalemate(board: List<MutableList<Cell>>, player : PlayerColor): Boolean {
+    if (player == PlayerColor.WHITE) {
+        val allAvailCellsWithPieces = board.flatten().filter { it.piece?.color == PlayerColor.WHITE}
+        return allAvailCellsWithPieces.all {
+            val color = it.piece?.color
+            color?.let { colorPiece -> checkNoAdvance(board, it, colorPiece) && checkNoCapture(board, it, colorPiece)} == true
+        }
+    } else {
+        val allAvailCellsWithPieces = board.flatten().filter { it.piece?.color == PlayerColor.BLACK }
+        return allAvailCellsWithPieces.all {
+            val color = it.piece?.color
+            color?.let { colorPiece -> checkNoAdvance(board, it, colorPiece) && checkNoCapture(board, it, colorPiece)} == true
+        }
+    }
+}
+fun checkNoAdvance(board: List<MutableList<Cell>>, cell: Cell, color: PlayerColor): Boolean {
+    if (color == PlayerColor.WHITE) {
+        val nextCell = board.flatten().firstOrNull { it.file == cell.file && it.rank == cell.rank + 1}
+        return nextCell?.piece != null
+    } else {
+        val nextCell = board.flatten().firstOrNull { it.file == cell.file && it.rank == cell.rank - 1}
+        return nextCell?.piece != null
+    }
+}
+fun checkNoCapture(board: List<MutableList<Cell>>, cell: Cell, color: PlayerColor): Boolean {
+    val startFile = cell.file
+    val adjFiles = if (startFile != 'a'.toString() && startFile != 'h'.toString()) listOf(startFile.toCharArray()[0] + 1, startFile.toCharArray()[0] - 1)
+    else if (startFile == 'a'.toString()) listOf(startFile.toCharArray()[0] + 1) else listOf(startFile.toCharArray()[0] - 1)
+    for (adjFile in adjFiles) {
+        if (color == PlayerColor.WHITE) {
+            if(board.flatten().firstOrNull { it.file == adjFile.toString() && it.rank == cell.rank + 1}?.piece?.color == PlayerColor.BLACK) return false
+        } else {
+            if(board.flatten().firstOrNull { it.file == adjFile.toString() && it.rank == cell.rank - 1}?.piece?.color == PlayerColor.WHITE) return false
+        }
+    }
+    //checkEnPassant
+    if (color == PlayerColor.WHITE) {
+        if (cell.rank == 5){
+            val mutListEnpassantCandidates = mutableListOf<String>()
+            for (file in adjFiles) {
+                if (lastMove == "${file}7${file}5") {
+                    mutListEnpassantCandidates.add("${startFile}5${file}6")
+                }
+            }
+            if (mutListEnpassantCandidates.isNotEmpty()){
+                return false
+            }
+        }
+    } else {
+        if (cell.rank == 4){
+
+            val mutListEnpassantCandidates = mutableListOf<String>()
+            for (file in adjFiles) {
+                if (lastMove == "${file}2${file}4") {
+                    mutListEnpassantCandidates.add("${startFile}4${file}3")
+                }
+            }
+            if (mutListEnpassantCandidates.isNotEmpty()){
+                return false
+            }
+        }
+    }
+
+    return true
+}
+fun checkWinByAdvance(board: List<MutableList<Cell>>, playerColor: PlayerColor): Boolean {
+    if (playerColor == PlayerColor.WHITE) {
+        return board.flatten().firstOrNull { it.rank == 8 && it.piece?.color == PlayerColor.WHITE} != null
+    } else {
+        return board.flatten().firstOrNull { it.rank == 1 && it.piece?.color == PlayerColor.BLACK} != null
+    }
+}
+fun checkWinByCapture(board: List<MutableList<Cell>>, playerColor: PlayerColor) : Boolean {
+    return board.flatten().count { it.piece?.color == PlayerColor.BLACK} == 0 || board.flatten().count {it.piece?.color == PlayerColor.WHITE} == 0
 }
 fun getPatternForDiagCaptures(move: String, board: List<MutableList<Cell>>, playerColor: PlayerColor): String? {
     val file = move[0]
